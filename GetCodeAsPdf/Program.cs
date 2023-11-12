@@ -1,6 +1,9 @@
 ﻿using MigraDoc.DocumentObjectModel;
 using MigraDoc.Rendering;
 using PdfSharp.Fonts;
+using System;
+using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace GetCodeAsPdf
@@ -20,59 +23,75 @@ namespace GetCodeAsPdf
                 return;
             }
 
-            Console.WriteLine("Strap in.  This can take a while...");
-
             string solutionName = Path.GetFileNameWithoutExtension(solutionFile);
             string outputFile = Path.Combine(currentDirectory, $"{solutionName}.pdf");
 
-            StringBuilder sb = new();
-            string[] fileExtensions = { "*.cs", "*.cshtml", "*.js", "*.css" }; // Add more if needed
+            Document document = new();
+            DefineStyles(document);
+            Section section = document.AddSection();
+            CreateTableOfContents(section);
+
+            string[] fileExtensions = { "*.cs", "*.cshtml", "*.js", "*.css", "*.csproj", "*.json" }; // Extend as needed
+            string[] excludeDirectories = { "obj", "bin", "lib", "node_modules", "Migrations", ".vs" }; // Directories to exclude
 
             foreach (string ext in fileExtensions)
             {
                 foreach (string file in Directory.EnumerateFiles(currentDirectory, ext, SearchOption.AllDirectories))
                 {
-                    if (file.Contains("bootstrap") || file.Contains("jquery"))
+                    if (ShouldExcludeFile(file, excludeDirectories))
                     {
                         continue;
                     }
 
-                    Console.WriteLine("Processing " + file);
-                    sb.AppendLine($"File: {file}");
-                    sb.AppendLine(File.ReadAllText(file));
-                    sb.AppendLine("\n\n"); // Adding some space between files
+                    string relativeFilePath = file[(currentDirectory.Length + 1)..];
+                    Console.WriteLine("Processing " + relativeFilePath);
+
+                    Paragraph para = section.AddParagraph();
+                    para.Style = "Heading1";
+                    para.AddBookmark(relativeFilePath);
+                    para.AddFormattedText(relativeFilePath, TextFormat.Bold);
+
+                    section.AddParagraph(File.ReadAllText(file), "CodeStyle");
+
+                    section.AddParagraph("\n\n"); // Adding some space between files
                 }
             }
 
-            CreatePdf(sb.ToString(), outputFile);
+            CreatePdf(document, outputFile);
         }
 
-        static void CreatePdf(string content, string outputPath)
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+        static void DefineStyles(Document document)
         {
-            Document document = new();
-            Section section = document.AddSection();
+            Style style = document.Styles["Normal"];
+            style.Font.Name = "Arial";
 
-            // Break content into smaller chunks if necessary
-            const int chunkSize = 5000;  // Adjust as needed
-            int contentLength = content.Length;
-            int startIndex = 0;
 
-            while (startIndex < contentLength)
-            {
-                int length = Math.Min(chunkSize, contentLength - startIndex);
-                string chunk = content.Substring(startIndex, length);
+            style = document.Styles.AddStyle("CodeStyle", "Normal");
+            style.Font.Name = "Courier New";
+            style.Font.Size = 10;
 
-                Paragraph paragraph = section.AddParagraph();
-                paragraph.Format.Font.Name = "Arial";
-                paragraph.Format.Font.Size = 10;
-                paragraph.AddText(chunk);
+            style = document.Styles["Heading1"];
+            style.Font.Size = 14;
+            style.Font.Bold = true;
+        }
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
-                startIndex += length;
+        static void CreateTableOfContents(Section section)
+        {
+            Paragraph paragraph = section.AddParagraph("Table of Contents");
+            paragraph.Format.Font.Size = 14;
+            paragraph.Format.Font.Bold = true;
+            paragraph.Format.SpaceAfter = 24;
 
-                // Optionally add a new section for each chunk
-                // section = document.AddSection();
-            }
+            paragraph = section.AddParagraph();
+            paragraph.Style = "TOC";
+        }
 
+        static void CreatePdf(Document document, string outputPath)
+        {
             PdfDocumentRenderer renderer = new()
             {
                 Document = document
@@ -83,5 +102,20 @@ namespace GetCodeAsPdf
             Console.WriteLine($"PDF saved to {outputPath}");
         }
 
+        private static bool ShouldExcludeFile(string filePath, string[] excludeDirectories)
+        {
+            if (excludeDirectories.Any(dir => filePath.Contains(Path.DirectorySeparatorChar + dir + Path.DirectorySeparatorChar)))
+            {
+                return true;
+            }
+
+            string[] firstLines = File.ReadLines(filePath).Take(5).ToArray();
+            if (firstLines.Any(line => line.Contains("Auto-generated")))
+            {
+                return true;
+            }
+
+            return false;
+        }
     }
 }
