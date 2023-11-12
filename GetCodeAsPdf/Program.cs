@@ -20,6 +20,8 @@ namespace GetCodeAsPdf
                 return;
             }
 
+            Console.WriteLine("Strap in.  This can take a while...");
+
             string solutionName = Path.GetFileNameWithoutExtension(solutionFile);
             string outputFile = Path.Combine(currentDirectory, $"{solutionName}.pdf");
 
@@ -30,6 +32,12 @@ namespace GetCodeAsPdf
             {
                 foreach (string file in Directory.EnumerateFiles(currentDirectory, ext, SearchOption.AllDirectories))
                 {
+                    if (file.Contains("bootstrap") || file.Contains("jquery"))
+                    {
+                        continue;
+                    }
+
+                    Console.WriteLine("Processing " + file);
                     sb.AppendLine($"File: {file}");
                     sb.AppendLine(File.ReadAllText(file));
                     sb.AppendLine("\n\n"); // Adding some space between files
@@ -43,10 +51,27 @@ namespace GetCodeAsPdf
         {
             Document document = new();
             Section section = document.AddSection();
-            Paragraph paragraph = section.AddParagraph();
-            paragraph.Format.Font.Name = "Arial";
-            paragraph.Format.Font.Size = 10;
-            paragraph.AddText(content);
+
+            // Break content into smaller chunks if necessary
+            const int chunkSize = 5000;  // Adjust as needed
+            int contentLength = content.Length;
+            int startIndex = 0;
+
+            while (startIndex < contentLength)
+            {
+                int length = Math.Min(chunkSize, contentLength - startIndex);
+                string chunk = content.Substring(startIndex, length);
+
+                Paragraph paragraph = section.AddParagraph();
+                paragraph.Format.Font.Name = "Arial";
+                paragraph.Format.Font.Size = 10;
+                paragraph.AddText(chunk);
+
+                startIndex += length;
+
+                // Optionally add a new section for each chunk
+                // section = document.AddSection();
+            }
 
             PdfDocumentRenderer renderer = new()
             {
@@ -57,5 +82,6 @@ namespace GetCodeAsPdf
 
             Console.WriteLine($"PDF saved to {outputPath}");
         }
+
     }
 }
