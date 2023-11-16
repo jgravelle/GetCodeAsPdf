@@ -1,10 +1,6 @@
 ﻿using MigraDoc.DocumentObjectModel;
 using MigraDoc.Rendering;
 using PdfSharp.Fonts;
-using System;
-using System.IO;
-using System.Linq;
-using System.Text;
 
 namespace GetCodeAsPdf
 {
@@ -32,7 +28,7 @@ namespace GetCodeAsPdf
             CreateTableOfContents(section);
 
             string[] fileExtensions = { "*.cs", "*.cshtml", "*.js", "*.css", "*.csproj", "*.json" }; // Extend as needed
-            string[] excludeDirectories = { "obj", "bin", "lib", "node_modules", "Migrations", ".vs" }; // Directories to exclude
+            string[] excludeDirectories = { "docs", "obj", "bin", "lib", "node_modules", "Migrations", ".vs", "Properties" }; // Directories to exclude
 
             foreach (string ext in fileExtensions)
             {
@@ -46,14 +42,31 @@ namespace GetCodeAsPdf
                     string relativeFilePath = file[(currentDirectory.Length + 1)..];
                     Console.WriteLine("Processing " + relativeFilePath);
 
-                    Paragraph para = section.AddParagraph();
-                    para.Style = "Heading1";
-                    para.AddBookmark(relativeFilePath);
-                    para.AddFormattedText(relativeFilePath, TextFormat.Bold);
+                    try
+                    {
+                        string fileContent = File.ReadAllText(file);
+                        if (string.IsNullOrWhiteSpace(fileContent))
+                        {
+                            Console.WriteLine($"Warning: The file '{relativeFilePath}' is empty or whitespace.");
+                            continue;
+                        }
 
-                    section.AddParagraph(File.ReadAllText(file), "CodeStyle");
+                        Paragraph para = section.AddParagraph();
+                        para.Style = "Heading1";
+                        para.AddBookmark(relativeFilePath);
+                        para.AddFormattedText(relativeFilePath, TextFormat.Bold);
+                        Console.WriteLine($"Added heading for {relativeFilePath}");
 
-                    section.AddParagraph("\n\n"); // Adding some space between files
+                        section.AddParagraph(fileContent, "CodeStyle");
+                        Console.WriteLine($"Added content for {relativeFilePath}");
+
+                        section.AddParagraph("\n\n"); // Adding some space between files
+                        Console.WriteLine($"Added spacing after {relativeFilePath}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error processing file '{relativeFilePath}': {ex.Message}");
+                    }
                 }
             }
 
@@ -92,14 +105,21 @@ namespace GetCodeAsPdf
 
         static void CreatePdf(Document document, string outputPath)
         {
-            PdfDocumentRenderer renderer = new()
+            try
             {
-                Document = document
-            };
-            renderer.RenderDocument();
-            renderer.PdfDocument.Save(outputPath);
-
-            Console.WriteLine($"PDF saved to {outputPath}");
+                PdfDocumentRenderer renderer = new()
+                {
+                    Document = document
+                };
+                Console.WriteLine("Starting document rendering...");
+                renderer.RenderDocument();
+                renderer.PdfDocument.Save(outputPath);
+                Console.WriteLine($"PDF saved to {outputPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error creating PDF: " + ex.ToString());
+            }
         }
 
         private static bool ShouldExcludeFile(string filePath, string[] excludeDirectories)
