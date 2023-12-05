@@ -22,7 +22,7 @@ namespace GetCodeAsPdf
             string solutionName = Path.GetFileNameWithoutExtension(solutionFile);
             string outputFile = Path.Combine(currentDirectory, $"{solutionName}.pdf");
 
-            Document document = new();
+            Document document = new Document();
             DefineStyles(document);
             Section section = document.AddSection();
             CreateTableOfContents(section);
@@ -36,6 +36,12 @@ namespace GetCodeAsPdf
                 {
                     if (ShouldExcludeFile(file, excludeDirectories))
                     {
+                        continue;
+                    }
+
+                    if (!IsFileContentSuitableForPdf(file))
+                    {
+                        Console.WriteLine($"Skipping file due to unsuitable content: {file}");
                         continue;
                     }
 
@@ -73,13 +79,10 @@ namespace GetCodeAsPdf
             CreatePdf(document, outputFile);
         }
 
-#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
         static void DefineStyles(Document document)
         {
             Style style = document.Styles["Normal"];
             style.Font.Name = "Arial";
-
 
             style = document.Styles.AddStyle("CodeStyle", "Normal");
             style.Font.Name = "Courier New";
@@ -89,8 +92,6 @@ namespace GetCodeAsPdf
             style.Font.Size = 14;
             style.Font.Bold = true;
         }
-#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
         static void CreateTableOfContents(Section section)
         {
@@ -107,7 +108,7 @@ namespace GetCodeAsPdf
         {
             try
             {
-                PdfDocumentRenderer renderer = new()
+                PdfDocumentRenderer renderer = new PdfDocumentRenderer()
                 {
                     Document = document
                 };
@@ -119,7 +120,25 @@ namespace GetCodeAsPdf
             catch (Exception ex)
             {
                 Console.WriteLine("Error creating PDF: " + ex.ToString());
+                throw; // Rethrow the exception to preserve the original stack trace
             }
+        }
+
+        private static bool IsFileContentSuitableForPdf(string filePath)
+        {
+            var lines = File.ReadAllLines(filePath);
+            foreach (var line in lines)
+            {
+                // Check for overly long lines
+                if (line.Length > 1000) // Adjust the threshold as needed
+                {
+                    Console.WriteLine($"Warning: Long line detected in {filePath}");
+                    return false;
+                }
+
+                // Add other checks as needed, e.g., special characters, formatting issues, etc.
+            }
+            return true;
         }
 
         private static bool ShouldExcludeFile(string filePath, string[] excludeDirectories)
