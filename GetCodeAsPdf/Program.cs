@@ -22,7 +22,7 @@ namespace GetCodeAsPdf
             string solutionName = Path.GetFileNameWithoutExtension(solutionFile);
             string outputFile = Path.Combine(currentDirectory, $"{solutionName}.pdf");
 
-            Document document = new Document();
+            Document document = new();
             DefineStyles(document);
             Section section = document.AddSection();
             CreateTableOfContents(section);
@@ -81,14 +81,14 @@ namespace GetCodeAsPdf
 
         static void DefineStyles(Document document)
         {
-            Style style = document.Styles["Normal"];
+            Style style = document.Styles["Normal"] ?? document.Styles.AddStyle("Normal", "Normal");
             style.Font.Name = "Arial";
 
             style = document.Styles.AddStyle("CodeStyle", "Normal");
             style.Font.Name = "Courier New";
             style.Font.Size = 10;
 
-            style = document.Styles["Heading1"];
+            style = document.Styles["Heading1"] ?? document.Styles.AddStyle("Heading1", "Normal");
             style.Font.Size = 14;
             style.Font.Bold = true;
         }
@@ -108,7 +108,7 @@ namespace GetCodeAsPdf
         {
             try
             {
-                PdfDocumentRenderer renderer = new PdfDocumentRenderer()
+                PdfDocumentRenderer renderer = new()
                 {
                     Document = document
                 };
