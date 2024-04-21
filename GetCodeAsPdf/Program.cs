@@ -13,22 +13,25 @@ namespace GetCodeAsPdf
             string currentDirectory = Directory.GetCurrentDirectory();
             string? solutionFile = Directory.GetFiles(currentDirectory, "*.sln").FirstOrDefault();
 
-            if (solutionFile == null)
+            string projectName;
+            if (solutionFile != null)
             {
-                Console.WriteLine("No .sln file found in the current directory.");
-                return;
+                projectName = Path.GetFileNameWithoutExtension(solutionFile);
+            }
+            else
+            {
+                projectName = new DirectoryInfo(currentDirectory).Name;
             }
 
-            string solutionName = Path.GetFileNameWithoutExtension(solutionFile);
-            string outputFile = Path.Combine(currentDirectory, $"{solutionName}.pdf");
+            string outputFile = Path.Combine(currentDirectory, $"{projectName}.pdf");
 
             Document document = new();
             DefineStyles(document);
             Section section = document.AddSection();
             CreateTableOfContents(section);
 
-            string[] fileExtensions = { "*.cs", "*.cshtml", "*.js", "*.css", "*.csproj", "*.json" }; // Extend as needed
-            string[] excludeDirectories = { "docs", "obj", "bin", "lib", "node_modules", "Migrations", ".vs", "Properties" }; // Directories to exclude
+            string[] fileExtensions = { "*.cs", "*.cshtml", "*.js", "*.css", "*.csproj", "*.json", "*.py" };
+            string[] excludeDirectories = { "docs", "obj", "bin", "lib", "node_modules", "Migrations", ".vs", "Properties", "__pycache__", "venv" };
 
             foreach (string ext in fileExtensions)
             {
@@ -66,7 +69,7 @@ namespace GetCodeAsPdf
                         section.AddParagraph(fileContent, "CodeStyle");
                         Console.WriteLine($"Added content for {relativeFilePath}");
 
-                        section.AddParagraph("\n\n"); // Adding some space between files
+                        section.AddParagraph("\n\n");
                         Console.WriteLine($"Added spacing after {relativeFilePath}");
                     }
                     catch (Exception ex)
